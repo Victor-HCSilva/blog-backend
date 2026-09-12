@@ -79,6 +79,7 @@ class PublicationBase(BaseModel):
     )
     document: DocumentSchema
     presentation: PublicationPresentation
+    thumbnail_url: str | None = Field(default=None, max_length=500)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -91,6 +92,7 @@ class PublicationUpdate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     document: DocumentSchema
     presentation: PublicationPresentation
+    thumbnail_url: str | None = Field(default=None, max_length=500)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -98,5 +100,6 @@ class PublicationUpdate(BaseModel):
 class PublicationResponse(PublicationBase):
     id: int
     user_id: int
+    is_published: bool
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")

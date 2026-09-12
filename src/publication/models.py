@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
@@ -16,6 +16,8 @@ class Publication(ActivableMixin, TimeStampMixin, Base):
 
     document = Column(JSONB, nullable=False)
     presentation = Column(JSONB, nullable=False)
+    thumbnail_url = Column(String(500), nullable=True)
+    is_published = Column(Boolean, default=False, nullable=False)
     like = Column(Integer, default=0)
     dislike = Column(Integer, default=0)
     author = relationship("User", back_populates="publications")
