@@ -79,3 +79,5 @@ Thumbs.db
 *.sqlite3
 media
 staticfiles
+
+src/text_to_audio/audios

@@ -2,6 +2,12 @@
 
 Uma plataforma de publicação moderna construída com **Django 5**, com suporte a modo escuro/claro, sistema de autenticação, painel administrativo próprio e proteção avançada com django-axes.
 
+
+- Home page:
+
+
+![alt text](docs/imgs/home-page.png)
+
 ---
 
 ## 📋 Funcionalidades

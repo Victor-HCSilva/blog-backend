@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from auth.routes import get_current_user
 from core.database import get_db
@@ -13,6 +14,8 @@ from publication.service import (
     publish_publication_service,
     update_publication_service,
 )
+from text_to_audio.dto import PublicationDTO
+from text_to_audio.engine import TextToAudio
 from users.models import User
 
 router = APIRouter(prefix="/publications", tags=["Publications"])
@@ -57,6 +60,43 @@ async def get_publication(slug: str, db: AsyncSession = Depends(get_db)):
     if not db_pub:
         raise HTTPException(status_code=404, detail="Publicação não encontrada")
     return db_pub
+
+
+@router.post("/{slug}/audio", response_class=Response)
+async def generate_publication_audio(slug: str, db: AsyncSession = Depends(get_db)):
+    db_pub = await get_publication_by_slug_service(db=db, slug=slug)
+    if not db_pub:
+        raise HTTPException(status_code=404, detail="Publicação não encontrada")
+
+    blocks = db_pub.document.get("blocks", [])
+    text_parts = [db_pub.title]
+    for block in blocks:
+        if block.get("type") == "list":
+            content_groups = block.get("items", [])
+        else:
+            content_groups = [block.get("content", [])]
+        text_parts.extend(
+            item.get("text", "") for content in content_groups for item in content
+        )
+
+    text = "\n".join(part.strip() for part in text_parts if part.strip())
+    if not text:
+        raise HTTPException(status_code=400, detail="A publicação não possui texto")
+
+    audio = await run_in_threadpool(
+        TextToAudio(
+            PublicationDTO(
+                author_name="autor da publicação",
+                date=None,
+                content=text,
+            )
+        ).convert
+    )
+    return Response(
+        content=audio,
+        media_type="audio/mpeg",
+        headers={"Content-Disposition": f'inline; filename="{db_pub.slug}.mp3"'},
+    )
 
 
 @router.post("/{slug}/publish", response_model=schemas.PublicationResponse)
