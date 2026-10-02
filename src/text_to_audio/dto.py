@@ -8,4 +8,4 @@ class PublicationDTO:
     content: str
 
     def to_start(self):
-        return f"Publicação feita por {self.author_name} em {self.date if self.date else 'data não fornecida'}. {self.content}"
+        return f"Publicação feita por {self.author_name} em {self.date if self.date else 'data não fornecida'}. Título: {self.content}"

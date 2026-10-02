@@ -39,6 +39,22 @@ services:
     # Habilitamos o --reload para o ambiente de desenvolvimento local
     command: uvicorn main:app --app-dir src --host 0.0.0.0 --port 8000 --reload
 
+  redis:  
+    image: redis:7-alpine
+    container_name: brain_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'     # Redis é levíssimo, 25% de 1 núcleo
+          memory: 128M 
 volumes:
   postgres_data:
 

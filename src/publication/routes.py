@@ -14,6 +14,7 @@ from publication.service import (
     publish_publication_service,
     update_publication_service,
 )
+from users.service import get_user_by_publication
 from text_to_audio.dto import PublicationDTO
 from text_to_audio.engine import TextToAudio
 from users.models import User
@@ -65,6 +66,11 @@ async def get_publication(slug: str, db: AsyncSession = Depends(get_db)):
 @router.post("/{slug}/audio", response_class=Response)
 async def generate_publication_audio(slug: str, db: AsyncSession = Depends(get_db)):
     db_pub = await get_publication_by_slug_service(db=db, slug=slug)
+    author = await get_user_by_publication(
+        db=db,
+        publication_id=db_pub.id
+    )
+
     if not db_pub:
         raise HTTPException(status_code=404, detail="Publicação não encontrada")
 
@@ -86,8 +92,8 @@ async def generate_publication_audio(slug: str, db: AsyncSession = Depends(get_d
     audio = await run_in_threadpool(
         TextToAudio(
             PublicationDTO(
-                author_name="autor da publicação",
-                date=None,
+                author_name= author.username or "autor da publicação",
+                date=db_pub.created_at.date() or None,
                 content=text,
             )
         ).convert
@@ -123,6 +129,7 @@ async def update_publication(
     db_pub = await get_owned_publication_by_slug_service(
         db=db, slug=slug, user_id=current_user.id
     )
+    
     if not db_pub:
         raise HTTPException(status_code=404, detail="Publicação não encontrada")
     if db_pub.user_id != current_user.id:

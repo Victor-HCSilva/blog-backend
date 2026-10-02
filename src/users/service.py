@@ -2,9 +2,9 @@ from fastapi import HTTPException, status
 from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from typing import Optional
 from users.models import User
-
+from publication.models import Publication
 password_hash = PasswordHash.recommended()
 
 
@@ -50,3 +50,17 @@ async def update_user_service(
 async def delete_user_service(*, db: AsyncSession, user: User) -> None:
     user.is_active = False
     await db.commit()
+
+async def get_user_by_publication(
+    *, 
+    db: AsyncSession, 
+    publication_id: int
+) -> Optional[User]:
+    # Faz o JOIN no banco e retorna direto o autor da publicação
+    stmt = (
+        select(User)
+        .join(Publication, Publication.user_id == User.id)
+        .where(Publication.id == publication_id)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()

@@ -2,10 +2,14 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
-from presentation.presentation import (
+from presentation.schemas import (
     BackgroundConfig,
+    LayoutConfig,
     LayoutWidth,
+    PresentationSchema,
+    PublicationPresentation,
     TemplatePreset,
+    TypographyConfig,
     TypographyFamily,
     TypographySize,
 )
@@ -45,31 +49,6 @@ class DocumentBlock(BaseModel):
 
 class DocumentSchema(BaseModel):
     blocks: list[DocumentBlock] = Field(default_factory=list)
-
-
-class TypographyConfig(BaseModel):
-    family: TypographyFamily = TypographyFamily.SANS
-    size: TypographySize = TypographySize.MEDIUM
-
-    model_config = ConfigDict(extra="forbid")
-
-
-class LayoutConfig(BaseModel):
-    width: LayoutWidth = LayoutWidth.STANDARD
-    spacing: Literal["comfortable", "compact"] = "comfortable"
-
-    model_config = ConfigDict(extra="forbid")
-
-
-class PublicationPresentation(BaseModel):
-    """Author design intentions; arbitrary CSS values are intentionally forbidden."""
-
-    template: TemplatePreset = TemplatePreset.CLEAN
-    background: BackgroundConfig = Field(default_factory=BackgroundConfig)
-    typography: TypographyConfig = Field(default_factory=TypographyConfig)
-    layout: LayoutConfig = Field(default_factory=LayoutConfig)
-
-    model_config = ConfigDict(extra="forbid")
 
 
 class PublicationBase(BaseModel):

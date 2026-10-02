@@ -23,4 +23,4 @@ COPY . .
 EXPOSE 8000
 
 # Comando para iniciar o servidor Uvicorn escutando em todas as interfaces de rede do contêiner
-CMD ["uvicorn", "main:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000"]
+# CMD ["uvicorn", "main:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000"]

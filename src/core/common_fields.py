@@ -15,3 +15,6 @@ class TimeStampMixin:
         onupdate=func.now(),
         nullable=False,
     )
+
+class AtivableAndTimeStamp(TimeStampMixin):
+    pass
