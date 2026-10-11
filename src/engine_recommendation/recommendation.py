@@ -16,29 +16,16 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from .dto import PublicationRepr, UserRepr
 
-from publication.models import Publication
 
-
-# ---------------------------------------------------------------------------
-# Tipos auxiliares
-# ---------------------------------------------------------------------------
-
-@dataclass
-class PublicationRepr:
-    """Representação leve de uma publicação para o motor de recomendação."""
-
-    id: int
-    slug: str
-    title: str
-    raw_text: str
-    tags: list[str] = field(default_factory=list)
+if TYPE_CHECKING:
+    from publication.models import Publication
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +101,9 @@ def _extract_tags_from_text(text: str, top_n: int = 10) -> list[str]:
     return [token for token, _ in sorted_tokens[:top_n]]
 
 
-def build_publication_repr(pub: Publication) -> PublicationRepr:
+def build_publication_repr(
+    pub: Publication, tags: list[str] | None = None
+) -> PublicationRepr:
     """
     Constrói um `PublicationRepr` a partir de um objeto ORM `Publication`.
 
@@ -123,14 +112,16 @@ def build_publication_repr(pub: Publication) -> PublicationRepr:
     """
     body_text = _extract_text_from_document(pub.document)
     full_text = f"{pub.title} {body_text}".strip()
-    tags = _extract_tags_from_text(full_text)
+    extracted_tags = _extract_tags_from_text(full_text)
+    if tags:
+        extracted_tags = list(dict.fromkeys([*tags, *extracted_tags]))
 
     return PublicationRepr(
         id=pub.id,
         slug=pub.slug,
         title=pub.title,
         raw_text=full_text,
-        tags=tags,
+        tags=extracted_tags,
     )
 
 
@@ -329,20 +320,106 @@ class TFIDFRecommender:
 
     def recommend_for_history(self, read_slugs: list[str], top_n: int = 5) -> list[tuple[str, float]]:
         self._assert_fitted()
-        
+
         indices = [self._slug_to_idx[s] for s in read_slugs if s in self._slug_to_idx]
         if not indices:
             return []
 
         # Vetor de interesse = média dos vetores dos artigos que o leitor já consumiu
-        user_vector = self._tfidf_matrix[indices].mean(axis=0)
-        
+        user_vector = np.asarray(self._tfidf_matrix[indices].mean(axis=0))
+
         # Compara o perfil médio do usuário contra todo o catálogo do blog
         user_scores = cosine_similarity(user_vector, self._tfidf_matrix).flatten()
-        
+
         # Zera o score dos artigos que ele já leu (para não recomendar repetido)
         for idx in indices:
             user_scores[idx] = -1.0
-            
+
         top_indices = np.argsort(user_scores)[::-1][:top_n]
         return [(self._reprs[i].slug, float(user_scores[i])) for i in top_indices if user_scores[i] > 0]
+
+    def recommend_for_user(
+        self, user: UserRepr, top_n: int = 5
+    ) -> list[tuple[str, float]]:
+        """Recomenda publicações combinando as preferências declaradas do usuário."""
+        self._assert_fitted()
+
+        final_scores = self._preference_scores(user)
+        top_indices = np.argsort(final_scores)[::-1][:top_n]
+
+        return [
+            (self._reprs[idx].slug, float(final_scores[idx]))
+            for idx in top_indices
+            if final_scores[idx] > 0.0
+        ]
+
+    def recommend_for_profile(
+        self,
+        user: UserRepr,
+        read_slugs: list[str],
+        top_n: int = 5,
+    ) -> list[tuple[str, float]]:
+        """Combina preferências explícitas com o histórico recente de leitura."""
+        self._assert_fitted()
+
+        read_indices = {
+            self._slug_to_idx[slug] for slug in read_slugs if slug in self._slug_to_idx
+        }
+        has_preferences = any(preference.strip() for preference in user.preferences)
+        if not read_indices and not has_preferences:
+            return []
+
+        preference_scores = (
+            self._preference_scores(user)
+            if has_preferences
+            else np.zeros(len(self._reprs), dtype=np.float64)
+        )
+        history_scores = np.zeros(len(self._reprs), dtype=np.float64)
+        if read_indices:
+            user_vector = np.asarray(
+                self._tfidf_matrix[sorted(read_indices)].mean(axis=0)
+            )
+            history_scores = cosine_similarity(
+                user_vector, self._tfidf_matrix
+            ).flatten()
+
+        if has_preferences and read_indices:
+            final_scores = 0.5 * preference_scores + 0.5 * history_scores
+        elif has_preferences:
+            final_scores = preference_scores
+        else:
+            final_scores = history_scores
+
+        for idx in read_indices:
+            final_scores[idx] = -1.0
+
+        top_indices = np.argsort(final_scores)[::-1][:top_n]
+        return [
+            (self._reprs[idx].slug, float(final_scores[idx]))
+            for idx in top_indices
+            if final_scores[idx] > 0.0
+        ]
+
+    def _preference_scores(self, user: UserRepr) -> np.ndarray:
+        preferences = {
+            _normalize(preference).strip()
+            for preference in user.preferences
+            if preference.strip()
+        }
+        if not preferences:
+            return np.zeros(len(self._reprs), dtype=np.float64)
+
+        user_vector = self._vectorizer.transform([" ".join(sorted(preferences))])
+        cosine_scores = cosine_similarity(user_vector, self._tfidf_matrix).flatten()
+
+        tag_scores = np.zeros(len(self._reprs), dtype=np.float64)
+        for idx, publication in enumerate(self._reprs):
+            publication_tags = {_normalize(tag).strip() for tag in publication.tags}
+            publication_tags.discard("")
+            union = preferences | publication_tags
+            if union:
+                tag_scores[idx] = len(preferences & publication_tags) / len(union)
+
+        return (
+            (1.0 - self._tag_boost) * cosine_scores + self._tag_boost * tag_scores
+        )

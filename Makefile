@@ -10,7 +10,9 @@ PIP = $(VENV_DIR)/bin/pip
 # VENV_DIR = .venv
 # PIP = $(VENV_DIR)\Scripts\pip.exe
 
-.PHONY: help install venv activate runserver makemigrations migrate createsuperuser test collectstatic lint clean
+.PHONY: help install venv activate runserver makemigrations migrate createsuperuser test recommendation-test populate-publications delete-populated-publications collectstatic lint clean
+
+SEED_USER_ID ?=
 
 # Regra padrão: exibe ajuda se nenhum comando for especificado
 help:
@@ -25,6 +27,9 @@ help:
 	@echo "  make migrate          - Aplica as migrações ao banco de dados."
 	@echo "  make createsuperuser  - Cria um superusuário Django."
 	@echo "  make test             - Executa os testes do projeto."
+	@echo "  make recommendation-test - Executa o teste do motor de recomendação."
+	@echo "  make populate-publications SEED_USER_ID=1 - Carrega publicações de exemplo no Docker."
+	@echo "  make delete-populated-publications SEED_USER_ID=1 - Remove as publicações de exemplo."
 	@echo "  make collectstatic    - Coleta arquivos estáticos."
 	@echo "  make lint             - Executa um linter (ex: flake8, black)."
 	@echo "  make clean            - Remove arquivos temporários e o ambiente virtual."
@@ -73,6 +78,18 @@ createsuperuser:
 test:
 	@echo "Executando testes..."
 	$(VENV_DIR)/bin/$(PYTHON) $(MANAGE) test
+
+recommendation-test:
+	@echo "Testando recomendações para o perfil de usuário de exemplo..."
+	PYTHONPATH=src $(VENV_DIR)/bin/$(PYTHON) -m engine_recommendation.test.test_recommendation
+
+populate-publications:
+	@test -n "$(SEED_USER_ID)" || (echo "Informe SEED_USER_ID com o id de um usuário existente." && exit 2)
+	docker compose -f .docker/docker-compose.yml exec -T api python scripts/populate_publications.py --user-id $(SEED_USER_ID)
+
+delete-populated-publications:
+	@test -n "$(SEED_USER_ID)" || (echo "Informe SEED_USER_ID com o id do autor das publicações de exemplo." && exit 2)
+	docker compose -f .docker/docker-compose.yml exec -T api python scripts/delete_populated_publications.py --user-id $(SEED_USER_ID)
 
 # Coleta arquivos estáticos
 collectstatic:

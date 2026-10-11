@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserCreate(BaseModel):
@@ -21,6 +22,27 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+Preference = Annotated[str, Field(min_length=1, max_length=50)]
+
+
+class UserPreferencesUpdate(BaseModel):
+    preferences: list[Preference] = Field(default_factory=list, max_length=30)
+
+    @field_validator("preferences")
+    @classmethod
+    def normalize_preferences(cls, preferences: list[str]) -> list[str]:
+        cleaned = [preference.strip() for preference in preferences]
+        if any(not preference for preference in cleaned):
+            raise ValueError("As preferências não podem estar vazias.")
+        return list(dict.fromkeys(cleaned))
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class UserPreferencesResponse(BaseModel):
+    preferences: list[str]
 
 
 class UserInDB(BaseModel):

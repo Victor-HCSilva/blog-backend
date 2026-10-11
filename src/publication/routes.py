@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
@@ -9,17 +9,48 @@ from publication.service import (
     create_publication_service,
     get_owned_publication_by_slug_service,
     get_publication_by_slug_service,
+    get_user_reactions_service,
+    get_user_recommendations_service,
     list_owned_publications_service,
     list_publications_service,
     publish_publication_service,
+    record_publication_view_service,
+    set_publication_reaction_service,
     update_publication_service,
 )
-from users.service import get_user_by_publication
+from users.service import get_user_by_publication, get_user_preferences_service
 from text_to_audio.dto import PublicationDTO
 from text_to_audio.engine import TextToAudio
 from users.models import User
 
 router = APIRouter(prefix="/publications", tags=["Publications"])
+
+
+@router.get(
+    "/recommendations/me",
+    response_model=list[schemas.PersonalizedPublicationResponse],
+)
+async def get_my_recommendations(
+    top_n: int = Query(default=12, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    preferences = await get_user_preferences_service(
+        db=db, user_id=current_user.id
+    )
+    recommendations = await get_user_recommendations_service(
+        db=db,
+        user_id=current_user.id,
+        preferences=preferences,
+        top_n=top_n,
+    )
+    return [
+        {
+            **schemas.PublicationResponse.model_validate(publication).model_dump(),
+            "relevance_score": score,
+        }
+        for publication, score in recommendations
+    ]
 
 
 @router.post(
@@ -53,6 +84,56 @@ async def list_my_publications(
     current_user: User = Depends(get_current_user),
 ):
     return await list_owned_publications_service(db=db, user_id=current_user.id)
+
+
+@router.get("/reactions/me", response_model=schemas.UserReactionsResponse)
+async def get_my_publication_reactions(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    reactions = await get_user_reactions_service(db=db, user_id=current_user.id)
+    return {"reactions": reactions}
+
+
+@router.post("/{slug}/views", status_code=status.HTTP_204_NO_CONTENT)
+async def record_publication_view(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    publication = await get_publication_by_slug_service(db=db, slug=slug)
+    if publication is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Publicação não encontrada.",
+        )
+
+    await record_publication_view_service(
+        db=db, publication=publication, user_id=current_user.id
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/{slug}/reaction", response_model=schemas.ReactionResponse)
+async def update_publication_reaction(
+    slug: str,
+    payload: schemas.ReactionUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    publication = await get_publication_by_slug_service(db=db, slug=slug)
+    if publication is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Publicação não encontrada.",
+        )
+
+    return await set_publication_reaction_service(
+        db=db,
+        publication_id=publication.id,
+        user_id=current_user.id,
+        reaction=payload.reaction,
+    )
 
 
 @router.get("/{slug}", response_model=schemas.PublicationResponse)

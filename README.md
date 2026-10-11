@@ -156,6 +156,37 @@ make test
 
 - **42 testes** cobrindo models, views públicas, CRUD de posts/comentários, controle de acesso, CSRF e integridade do painel administrativo.
 
+### Testar o motor de recomendação
+
+Com as dependências instaladas no ambiente virtual, execute:
+
+```bash
+make recommendation-test
+```
+
+O comando lista as três publicações mais bem pontuadas para o perfil de teste
+definido em `src/engine_recommendation/test/test_recommendation.py`.
+
+### Popular e remover publicações de exemplo no Docker
+
+Com os serviços `db` e `api` em execução e com um usuário já cadastrado, passe
+seu ID como autor das publicações:
+
+```bash
+make populate-publications SEED_USER_ID=1
+```
+
+O comando cria as publicações de `data.py` como publicadas, associa as tags
+fornecidas e distribui as opções de apresentação suportadas pelo sistema entre
+elas. Slugs já existentes são ignorados, sem sobrescrever conteúdo.
+
+Para remover somente as publicações do conjunto de exemplo pertencentes ao
+usuário informado:
+
+```bash
+make delete-populated-publications SEED_USER_ID=1
+```
+
 ---
 
 ## 📦 Comandos Úteis (Makefile)

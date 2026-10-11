@@ -3,6 +3,8 @@ from datetime import datetime
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import declarative_base, relationship
+from core.common_fields import AtivableAndTimeStamp
+
 
 Base = declarative_base()
 
@@ -13,7 +15,7 @@ class PublicationState(str, Enum):
     ARCHIVED = "archived"
 
 
-class Publication(Base):
+class Publication(Base, AtivableAndTimeStamp):
     __tablename__ = "publications"
 
     id = Column(Integer, primary_key=True, index=True)

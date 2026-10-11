@@ -1,11 +1,11 @@
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
-from core.common_fields import ActivableMixin, TimeStampMixin
+from core.common_fields import AtivableAndTimeStamp
 from core.database import Base
 
 
-class Comment(ActivableMixin, TimeStampMixin, Base):
+class Comment(AtivableAndTimeStamp, Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)

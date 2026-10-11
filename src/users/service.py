@@ -3,7 +3,7 @@ from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
-from users.models import User
+from users.models import User, UserPreference
 from publication.models import Publication
 password_hash = PasswordHash.recommended()
 
@@ -64,3 +64,26 @@ async def get_user_by_publication(
     )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def get_user_preferences_service(
+    *, db: AsyncSession, user_id: int
+) -> list[str]:
+    preferences = await db.get(UserPreference, user_id)
+    return list(preferences.preferences) if preferences else []
+
+
+async def set_user_preferences_service(
+    *, db: AsyncSession, user_id: int, preferences: list[str]
+) -> list[str]:
+    stored_preferences = await db.get(UserPreference, user_id)
+    if stored_preferences is None:
+        stored_preferences = UserPreference(
+            user_id=user_id, preferences=preferences
+        )
+        db.add(stored_preferences)
+    else:
+        stored_preferences.preferences = preferences
+
+    await db.commit()
+    return list(stored_preferences.preferences)

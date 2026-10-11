@@ -1,17 +1,48 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth.routes import get_current_user
 from core.database import get_db
-from users.schemas import UserCreate, UserResponse, UserUpdate
+from users.models import User
+from users.schemas import (
+    UserCreate,
+    UserPreferencesResponse,
+    UserPreferencesUpdate,
+    UserResponse,
+    UserUpdate,
+)
 from users.service import (
     create_user_service,
     delete_user_service,
     get_user_service,
+    get_user_preferences_service,
     list_users_service,
+    set_user_preferences_service,
     update_user_service,
 )
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+
+@router.get("/me/preferences", response_model=UserPreferencesResponse)
+async def get_my_preferences(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    preferences = await get_user_preferences_service(db=db, user_id=current_user.id)
+    return {"preferences": preferences}
+
+
+@router.put("/me/preferences", response_model=UserPreferencesResponse)
+async def update_my_preferences(
+    preferences: UserPreferencesUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    saved_preferences = await set_user_preferences_service(
+        db=db, user_id=current_user.id, preferences=preferences.preferences
+    )
+    return {"preferences": saved_preferences}
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

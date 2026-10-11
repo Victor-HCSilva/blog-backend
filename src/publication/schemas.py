@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
@@ -80,5 +81,39 @@ class PublicationResponse(PublicationBase):
     id: int
     user_id: int
     is_published: bool
+    created_at: datetime
+    like: int = 0
+    dislike: int = 0
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
+class RelatedPublicationResponse(BaseModel):
+    """Resposta de publicações relacionadas retornadas pelo motor TF-IDF."""
+
+    slug: str
+    title: str
+    thumbnail_url: str | None
+    relevance_score: float = Field(
+        ge=0.0, le=1.0, description="Pontuação de relevância (0–1)"
+    )
+
+    model_config = ConfigDict(from_attributes=False)
+
+
+class PersonalizedPublicationResponse(PublicationResponse):
+    relevance_score: float = Field(ge=0.0, le=1.0)
+
+
+class ReactionUpdate(BaseModel):
+    reaction: Literal["like", "dislike"] | None
+
+
+class ReactionResponse(BaseModel):
+    like: int
+    dislike: int
+    reaction: Literal["like", "dislike"] | None
+
+
+class UserReactionsResponse(BaseModel):
+    reactions: dict[str, Literal["like", "dislike"]]

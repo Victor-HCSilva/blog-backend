@@ -4,6 +4,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from auth.routes import router as auth_router
 from core.database import Base, engine
@@ -41,6 +42,14 @@ async def startup():
         try:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+                for table in ("users", "publications", "comments"):
+                    await conn.execute(
+                        text(
+                            f"ALTER TABLE IF EXISTS {table} "
+                            "ADD COLUMN IF NOT EXISTS is_active "
+                            "BOOLEAN NOT NULL DEFAULT TRUE"
+                        )
+                    )
                 logger.info("Banco de dados conectado com sucesso")
                 return
         except Exception as error:

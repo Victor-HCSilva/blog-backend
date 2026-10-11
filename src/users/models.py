@@ -1,11 +1,12 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from core.common_fields import ActivableMixin, TimeStampMixin
+from core.common_fields import AtivableAndTimeStamp
 from core.database import Base
 
 
-class User(ActivableMixin, TimeStampMixin, Base):
+class User(AtivableAndTimeStamp, Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -17,3 +18,12 @@ class User(ActivableMixin, TimeStampMixin, Base):
         back_populates="author",
         cascade="all, delete-orphan",
     )
+
+
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    preferences = Column(JSONB, nullable=False, default=list)

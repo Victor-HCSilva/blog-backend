@@ -16,5 +16,5 @@ class TimeStampMixin:
         nullable=False,
     )
 
-class AtivableAndTimeStamp(TimeStampMixin):
+class AtivableAndTimeStamp(ActivableMixin, TimeStampMixin):
     pass
