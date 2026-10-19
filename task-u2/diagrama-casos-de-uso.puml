@@ -1,0 +1,40 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor Visitante
+actor "Usuário autenticado" as Usuario
+actor Autor
+Usuario <|-- Autor
+
+rectangle "Blog" {
+  usecase "Criar conta" as UC01
+  usecase "Entrar no sistema" as UC02
+  usecase "Descobrir publicações" as UC03
+  usecase "Ler publicação" as UC04
+  usecase "Criar publicação" as UC05
+  usecase "Editar publicação própria" as UC06
+  usecase "Publicar publicação própria" as UC07
+  usecase "Reagir a publicação" as UC08
+  usecase "Atualizar interesses" as UC09
+  usecase "Consultar recomendações" as UC10
+}
+
+Visitante -- UC01
+Visitante -- UC02
+Visitante -- UC03
+Visitante -- UC04
+
+Usuario -- UC03
+Usuario -- UC04
+Usuario -- UC08
+Usuario -- UC09
+Usuario -- UC10
+
+Autor -- UC05
+Autor -- UC06
+Autor -- UC07
+
+UC04 ..> UC03 : <<extend>>
+UC09 ..> UC10 : <<include>>
+@enduml

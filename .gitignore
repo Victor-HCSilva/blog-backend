@@ -80,4 +80,5 @@ Thumbs.db
 media
 staticfiles
 
-src/text_to_audio/audios
+src/text_to_audio/audios 
+!src/engine_recommendation/lib
